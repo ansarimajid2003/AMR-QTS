@@ -1,0 +1,38 @@
+# Virtual environment
+amr-qts-env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Data (too large for git)
+data/raw/
+data/clean/
+*.csv
+*.parquet
+
+# Models
+models/*.pkl
+
+# Logs
+logs/
+mt5/logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# MT5
+*.ex5
+
+# Telegram bot credentials
+.env
+config/secrets.json
