@@ -1,38 +1,60 @@
-# Virtual environment
+# ======================
+# DATA (IGNORE ALL)
+# ======================
+data/
+histdata/
+histdata_backup/
+
+# ======================
+# MODELS (IGNORE ALL)
+# ======================
+models/
+
+# ======================
+# ENVIRONMENT
+# ======================
 amr-qts-env/
+venv/
+.env/
 
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
-
-# Data (too large for git)
-data/raw/
-data/clean/
-*.csv
-*.parquet
-
-# Models
-models/*.pkl
-
-# Logs
+# ======================
+# LOGS
+# ======================
 logs/
 mt5/logs/
 
+# ======================
+# PYTHON CACHE
+# ======================
+__pycache__/
+*.pyc
+
+# ======================
+# BUILD FILES
+# ======================
+dist/
+build/
+*.egg-info/
+
+# ======================
 # IDE
+# ======================
 .vscode/
 .idea/
 *.swp
 
+# ======================
 # OS
+# ======================
 Thumbs.db
 .DS_Store
 
+# ======================
 # MT5
+# ======================
 *.ex5
 
-# Telegram bot credentials
-.env
+# ======================
+# SECRETS
+# ======================
 config/secrets.json
