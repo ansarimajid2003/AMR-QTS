@@ -17,11 +17,11 @@
 - [x] Copy task.md to project directory
 
 ## Phase 1 — Research & Backtesting
-- [ ] Data collection (EURUSD, GBPUSD, DXY, VIX, US10Y)
-- [ ] Data cleaning & validation
-- [ ] Build HMM regime detector
-- [ ] Build strategy modules
-- [ ] Isolate backtest each module
+- [x] Data collection (EURUSD, GBPUSD, DXY, VIX, US10Y)
+- [x] Data cleaning & validation
+- [x] Build HMM regime detector
+- [x] Build strategy modules
+- [/] Isolate backtest each module
 - [ ] Edge validation tests
 - [ ] HMM vs rules comparison
 
