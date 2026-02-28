@@ -285,15 +285,17 @@ class TrendStrategy:
         return signals
 
     def _get_regime_at(self, ts, h1_regime):
-        """Get the latest H1 regime at or before timestamp ts."""
-        valid = h1_regime.index[h1_regime.index <= ts]
+        """Get the latest fully closed H1 regime prior to the completion of the 15m bar."""
+        cutoff = ts - pd.Timedelta(minutes=45)
+        valid = h1_regime.index[h1_regime.index <= cutoff]
         if len(valid) == 0:
             return None
         return h1_regime.loc[valid[-1]]
 
     def _get_h4_at(self, ts, h4_structure):
-        """Get the latest H4 structure at or before timestamp ts."""
-        valid = h4_structure.index[h4_structure.index <= ts]
+        """Get the latest fully closed H4 structure prior to the completion of the 15m bar."""
+        cutoff = ts - pd.Timedelta(hours=3, minutes=45)
+        valid = h4_structure.index[h4_structure.index <= cutoff]
         if len(valid) == 0:
             return 0
         return h4_structure.loc[valid[-1]]
@@ -397,7 +399,9 @@ class MeanReversionStrategy:
         return signals
 
     def _get_regime_at(self, ts, h1_regime):
-        valid = h1_regime.index[h1_regime.index <= ts]
+        """Get the latest fully closed H1 regime prior to the completion of the 15m bar."""
+        cutoff = ts - pd.Timedelta(minutes=45)
+        valid = h1_regime.index[h1_regime.index <= cutoff]
         if len(valid) == 0:
             return None
         return h1_regime.loc[valid[-1]]
@@ -495,8 +499,9 @@ class HighVolStrategy:
         return h1_regime.loc[valid[-1]]
 
     def _get_h4_at(self, ts, h4_structure):
-        """Get the latest H4 structure at or before timestamp ts."""
-        valid = h4_structure.index[h4_structure.index <= ts]
+        """Get the latest fully closed H4 structure prior to the completion of the 15m bar."""
+        cutoff = ts - pd.Timedelta(hours=3, minutes=45)
+        valid = h4_structure.index[h4_structure.index <= cutoff]
         if len(valid) == 0:
             return 0
         return h4_structure.loc[valid[-1]]
