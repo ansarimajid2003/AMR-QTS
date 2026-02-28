@@ -110,42 +110,41 @@ def optimize_trend(symbol: str = "EURUSD"):
     # Pre-compute indicators so we don't do it in loops
     train_entry = compute_indicators(train_entry)
 
-    # 2. Define Parameter Grid
+    # 2. Define Parameter Grid (reduced for fewer combinations)
     grid = {
-        'breakout_bars': [15, 20, 25],
-        'atr_exp': [1.2, 1.5, 1.8],
-        'rsi_long': [(45, 75), (50, 80)],
-        'rsi_short': [(25, 55), (20, 50)],
-        'sl_atr': [1.2, 1.5, 2.0],
+        'breakout_bars': [15, 20],
+        'atr_exp': [1.5, 1.8],
+        'rsi_long': [(50, 80)],
+        'rsi_short': [(20, 50)],
+        'sl_atr': [1.5, 2.0],
         'rr': [1.5, 2.0, 2.5]
     }
 
     keys = grid.keys()
     combinations = list(itertools.product(*grid.values()))
     
-    tasks = []
-    for combo in combinations:
-        params = dict(zip(keys, combo))
-        tasks.append((symbol, train_entry, h1_regime, h4_structure, params))
-
     print(f"Total parameter combinations: {len(combinations)}")
-    print(f"Running grid search using {mp.cpu_count()} cores...")
+    print("Running grid search sequentially to avoid CPU and memory overload...")
 
     results = []
-    with mp.Pool(processes=mp.cpu_count()) as pool:
-        for i, (params, metrics) in enumerate(pool.imap_unordered(run_single_backtest, tasks)):
-            if metrics:
-                results.append({
-                    'params': params,
-                    'trades': metrics['n_trades'],
-                    'win_rate': metrics['win_rate'],
-                    'pf': metrics['profit_factor'],
-                    'sharpe': metrics['sharpe'],
-                    'pnl': metrics['total_pnl_pips'],
-                })
-            
-            if (i+1) % 50 == 0:
-                print(f"  Progress: {i+1}/{len(combinations)} combos evaluated...")
+    for i, combo in enumerate(combinations):
+        params = dict(zip(keys, combo))
+        # Run sequentially, avoiding multiprocessing overhead and memory bloat
+        args = (symbol, train_entry, h1_regime, h4_structure, params)
+        res_params, metrics = run_single_backtest(args)
+        
+        if metrics:
+            results.append({
+                'params': res_params,
+                'trades': metrics['n_trades'],
+                'win_rate': metrics['win_rate'],
+                'pf': metrics['profit_factor'],
+                'sharpe': metrics['sharpe'],
+                'pnl': metrics['total_pnl_pips'],
+            })
+        
+        if (i+1) % 10 == 0:
+            print(f"  Progress: {i+1}/{len(combinations)} combos evaluated...")
 
     # 3. Analyze Results
     res_df = pd.DataFrame(results)
