@@ -44,6 +44,18 @@ def _safe_symbol(symbol: str, ascii_fallback: str) -> str:
     return symbol
 
 
+def _safe_str(s: str) -> str:
+    """Return string safe for console output on encodings that don't support full Unicode."""
+    enc = getattr(sys.stdout, 'encoding', None) or 'utf-8'
+    if enc and enc.lower() in ('utf-8', 'utf8'):
+        return s
+    try:
+        s.encode(enc)
+        return s
+    except (UnicodeEncodeError, AttributeError):
+        return s.encode(enc, errors='replace').decode(enc, errors='replace')
+
+
 def print_success(message: str):
     """Print success message"""
     print(f"{Colors.OKGREEN}{_safe_symbol('✓', '[OK]')} {message}{Colors.ENDC}")
@@ -194,16 +206,16 @@ def display_project_context():
                 break
             in_section = True
             section_count += 1
-            print(f"\n{Colors.OKBLUE}{Colors.BOLD}{line}{Colors.ENDC}")
+            print(f"\n{Colors.OKBLUE}{Colors.BOLD}{_safe_str(line)}{Colors.ENDC}")
         elif line.startswith('### ') and in_section:
-            print(f"{Colors.OKCYAN}{line}{Colors.ENDC}")
+            print(f"{Colors.OKCYAN}{_safe_str(line)}{Colors.ENDC}")
         elif in_section and line.strip():
             # Only print first 3 lines of each section
             if section_count <= max_sections:
-                print(f"  {line}")
+                print(f"  {_safe_str(line)}")
     
-    print(f"\n{Colors.OKGREEN}📖 Full context available in: {context_file}{Colors.ENDC}")
-    print(f"{Colors.OKGREEN}💡 Share this file with AI assistants for full project understanding{Colors.ENDC}")
+    print(f"\n{Colors.OKGREEN}{_safe_symbol('📖', '>>')} Full context available in: {context_file}{Colors.ENDC}")
+    print(f"{Colors.OKGREEN}{_safe_symbol('💡', '*')} Share this file with AI assistants for full project understanding{Colors.ENDC}")
 
 
 def display_current_task():
@@ -235,7 +247,7 @@ def display_current_task():
                 current_phase = None  # Only print phase header once
             
             if '[ ]' in line:
-                print(f"  {Colors.WARNING}⧖ {line.strip()}{Colors.ENDC}")
+                print(f"  {Colors.WARNING}{_safe_symbol('⧖', '-')} {_safe_str(line.strip())}{Colors.ENDC}")
             elif line.strip().startswith('-'):
                 print(f"  {line.strip()}")
 
@@ -394,10 +406,11 @@ Examples:
     print_header("SESSION READY")
     print_success("Development session started successfully!")
     print_info("\nQuick tips:")
-    print(f"  • Run {Colors.BOLD}python end_session.py{Colors.ENDC} when done")
-    print(f"  • Read {Colors.BOLD}docs/PROJECT_CONTEXT.md{Colors.ENDC} for AI assistants")
-    print(f"  • Check {Colors.BOLD}docs/task.md{Colors.ENDC} for current tasks")
-    print(f"  • Session log: {Colors.BOLD}{log_file}{Colors.ENDC}\n")
+    bullet = _safe_str("  \u2022 ")  # bullet, falls back to replace char on narrow encodings
+    print(f"{bullet}Run {Colors.BOLD}python end_session.py{Colors.ENDC} when done")
+    print(f"{bullet}Read {Colors.BOLD}docs/PROJECT_CONTEXT.md{Colors.ENDC} for AI assistants")
+    print(f"{bullet}Check {Colors.BOLD}docs/task.md{Colors.ENDC} for current tasks")
+    print(f"{bullet}Session log: {Colors.BOLD}{log_file}{Colors.ENDC}\n")
 
 
 if __name__ == '__main__':
