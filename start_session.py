@@ -37,41 +37,76 @@ def print_header(message: str):
     print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}\n")
 
 
+def _safe_symbol(symbol: str, ascii_fallback: str) -> str:
+    """Use ASCII fallback on Windows when stdout may not support Unicode."""
+    if sys.platform == 'win32' and getattr(sys.stdout, 'encoding', None) in (None, 'cp1252', 'ascii'):
+        return ascii_fallback
+    return symbol
+
+
 def print_success(message: str):
     """Print success message"""
-    print(f"{Colors.OKGREEN}✓ {message}{Colors.ENDC}")
+    print(f"{Colors.OKGREEN}{_safe_symbol('✓', '[OK]')} {message}{Colors.ENDC}")
 
 
 def print_info(message: str):
     """Print info message"""
-    print(f"{Colors.OKCYAN}ℹ {message}{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}{_safe_symbol('ℹ', 'i')} {message}{Colors.ENDC}")
 
 
 def print_warning(message: str):
     """Print warning message"""
-    print(f"{Colors.WARNING}⚠ {message}{Colors.ENDC}")
+    print(f"{Colors.WARNING}{_safe_symbol('⚠', '!')} {message}{Colors.ENDC}")
 
 
 def print_error(message: str):
     """Print error message"""
-    print(f"{Colors.FAIL}✗ {message}{Colors.ENDC}")
+    print(f"{Colors.FAIL}{_safe_symbol('✗', 'X')} {message}{Colors.ENDC}")
+
+
+def _git_exe() -> str:
+    """Return path to git executable. On Windows, use common install path if git not in PATH."""
+    if sys.platform != 'win32':
+        return 'git'
+    for path in (
+        os.path.join(os.environ.get('ProgramFiles', 'C:\\Program Files'), 'Git', 'cmd', 'git.exe'),
+        os.path.join(os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)'), 'Git', 'cmd', 'git.exe'),
+    ):
+        if path and os.path.isfile(path):
+            return path
+    return 'git'
 
 
 def run_command(command: list, check: bool = True, capture: bool = True) -> subprocess.CompletedProcess:
-    """Run a shell command and return result"""
+    """Run a shell command and return result. On Windows uses full path to git when needed."""
     try:
+        if isinstance(command, list) and len(command) > 0 and command[0] == 'git':
+            command = [_git_exe()] + list(command[1:])
+        # Use shell only on Windows when we didn't resolve git to a path (path with spaces breaks shell)
+        use_shell = sys.platform == 'win32' and not (
+            isinstance(command, list) and command and os.path.isabs(str(command[0]))
+        )
+        if use_shell and isinstance(command, list):
+            cmd = ' '.join(command)
+        else:
+            cmd = command
         if capture:
             result = subprocess.run(
-                command,
+                cmd,
                 check=check,
                 capture_output=True,
-                text=True
+                text=True,
+                shell=use_shell,
+                cwd=os.getcwd()
             )
         else:
-            result = subprocess.run(command, check=check)
+            result = subprocess.run(cmd, check=check, shell=use_shell, cwd=os.getcwd())
         return result
+    except FileNotFoundError:
+        print_error("Git not found. Please install Git and add it to your PATH.")
+        raise
     except subprocess.CalledProcessError as e:
-        print_error(f"Command failed: {' '.join(command)}")
+        print_error(f"Command failed: {' '.join(command) if isinstance(command, list) else command}")
         if capture and e.stderr:
             print_error(f"Error: {e.stderr}")
         raise
@@ -82,7 +117,7 @@ def check_git_repo() -> bool:
     try:
         run_command(['git', 'rev-parse', '--git-dir'])
         return True
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
 
@@ -287,7 +322,7 @@ Examples:
     
     # 1. Check Git repository
     if not check_git_repo():
-        print_error("Not a Git repository! Run 'git init' first.")
+        print_error("Not a Git repository or Git not found. Run 'git init' or install Git and add it to PATH.")
         sys.exit(1)
     
     print_success("Git repository detected")
@@ -372,5 +407,8 @@ if __name__ == '__main__':
         print(f"\n{Colors.WARNING}Session start cancelled by user{Colors.ENDC}")
         sys.exit(1)
     except Exception as e:
-        print_error(f"Unexpected error: {e}")
+        try:
+            print_error(f"Unexpected error: {e}")
+        except UnicodeEncodeError:
+            print(f"Error: {e}")
         sys.exit(1)
