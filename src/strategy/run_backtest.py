@@ -105,14 +105,14 @@ def run_backtest(symbol: str = "EURUSD"):
         h4_structure = pd.Series(0, index=h1_df.index)
         print(f"  [WARN] No H4 data, using neutral structure")
 
-    # 4. Train/test split on entry data
+    # 4. Train/test split on entry data - USE IN-SAMPLE (TRAIN) FOR PHASE 1 ISOLATED TESTS
     split_idx = int(len(entry_df) * TRAIN_RATIO)
-    test_entry = entry_df.iloc[split_idx:]
-    print(f"\n[4] Test period: {test_entry.index[0].date()} to {test_entry.index[-1].date()} "
-          f"({len(test_entry):,} 15m bars)")
+    train_entry = entry_df.iloc[:split_idx]
+    print(f"\n[4] In-sample Train period: {train_entry.index[0].date()} to {train_entry.index[-1].date()} "
+          f"({len(train_entry):,} 15m bars)")
 
     # 5. Generate signals for each module
-    print(f"\n[5] Generating signals on TEST data...")
+    print(f"\n[5] Generating signals on IN-SAMPLE (TRAIN) data...")
     modules = [
         TrendStrategy(symbol),
         MeanReversionStrategy(symbol),
@@ -129,7 +129,7 @@ def run_backtest(symbol: str = "EURUSD"):
 
     for mod in modules:
         print(f"\n  >> {mod.name.upper()}")
-        signals = mod.generate_signals(test_entry, h1_regime, h4_structure)
+        signals = mod.generate_signals(train_entry, h1_regime, h4_structure)
         print(f"     Signals generated: {len(signals)}")
 
         if signals:
@@ -139,7 +139,7 @@ def run_backtest(symbol: str = "EURUSD"):
             print(f"     Long: {longs} | Short: {shorts}")
 
             # Simulate trades
-            trades = bt.simulate_trades(signals, test_entry, h1_regime)
+            trades = bt.simulate_trades(signals, train_entry, h1_regime)
             print(f"     Trades completed: {len(trades)}")
 
             # Performance metrics
