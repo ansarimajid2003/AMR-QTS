@@ -18,11 +18,7 @@ import pandas as pd
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from config.settings import (
-    SPREAD_PIPS, MAX_SLIPPAGE_PIPS,
-    TREND_RR_TRAIL_ACTIVATION, TREND_MFE_RETRACE_EXIT,
-    MR_TIME_EXIT_BARS, ATR_PERIOD,
-)
+import config.settings as opt_settings
 from src.strategy.modules import Signal, Trade, Direction
 from src.regime.regime_detector import Regime
 
@@ -82,7 +78,7 @@ class Backtester:
         entry = signal.entry_price
 
         # Apply spread + slippage to entry
-        spread = SPREAD_PIPS.get(signal.symbol, 0.2) / 10000
+        spread = opt_settings.SPREAD_PIPS.get(signal.symbol, 0.2) / 10000
         slippage = np.random.uniform(0, self.slippage_max) / 10000
         if direction == Direction.LONG:
             entry += spread + slippage
@@ -151,7 +147,7 @@ class Backtester:
 
             # --- Trailing stop (trend module) ---
             if self.use_trailing and signal.module == 'trend':
-                trail_trigger = entry + direction * TREND_RR_TRAIL_ACTIVATION * risk_dist
+                trail_trigger = entry + direction * opt_settings.TREND_RR_TRAIL_ACTIVATION * risk_dist
                 if direction == Direction.LONG and bar['high'] >= trail_trigger:
                     trail_activated = True
                     new_sl = bar['high'] - signal.atr_at_entry
@@ -162,7 +158,7 @@ class Backtester:
                     trailing_sl = min(trailing_sl, new_sl)
 
             # --- Time exit (mean reversion module) ---
-            if signal.module == 'meanrev' and bar_idx + 1 >= MR_TIME_EXIT_BARS:
+            if signal.module == 'meanrev' and bar_idx + 1 >= opt_settings.MR_TIME_EXIT_BARS:
                 return Trade(
                     signal=signal, exit_price=bar['close'], exit_time=ts,
                     exit_reason='time', bars_held=bar_idx + 1,

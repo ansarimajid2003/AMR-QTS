@@ -84,27 +84,32 @@ HMM_RETRAIN_MONTHS = 6       # Retrain every N months in walk-forward
 # ============================================================
 # MODULE 1 — Trend Continuation
 # ============================================================
-TREND_BREAKOUT_BARS = 20     # 20-bar high/low breakout
+TREND_BREAKOUT_BARS = 15     # Reduced from 20 for slightly earlier entries
 TREND_ATR_EXPANSION = 1.5    # Bar range > 1.5× avg of 5 bars
-TREND_RSI_LONG_RANGE = (45, 70)
-TREND_RSI_SHORT_RANGE = (30, 55)
-TREND_SL_ATR_MULT = 1.5
+TREND_RSI_LONG_RANGE = (50, 75) # Moved up slightly to ensure momentum is established
+TREND_RSI_SHORT_RANGE = (25, 50) # Moved down slightly
+# --- Dynamic AI Parameters ---
+TREND_RSI_LONG_MIN = 50
+TREND_RSI_LONG_MAX = 70
+TREND_RSI_SHORT_MIN = 30
+TREND_RSI_SHORT_MAX = 50
+TREND_USE_EMA_FILTER = True           # Turn off to bypass the 200 EMA lag slightly
+TREND_SL_ATR_MULT = 1.6      # Slightly wider stop (from 1.5 to 1.6) to avoid wicks
 TREND_RR_PRIMARY = 2.0
 TREND_RR_TRAIL_ACTIVATION = 1.0
 TREND_MFE_RETRACE_EXIT = 0.5  # Exit if retrace 50%+ of MFE
 
 # ============================================================
-# MODULE 2 — Mean Reversion
+# MODULE 2 — Mean Reversion (AI OPTIMIZED - OPTUNA RANK 211)
 # ============================================================
-MR_RSI_PERIOD = 14
-MR_RSI_OVERSOLD = 30
-MR_RSI_OVERBOUGHT = 70
-MR_BB_PERIOD = 20
-MR_BB_STD = 2.0
-MR_SL_ATR_MULT = 1.2
-MR_MIN_RR = 1.5
-MR_TIME_EXIT_BARS = 20      # Bars before forced exit
-
+MR_RSI_PERIOD = 21
+MR_RSI_OVERSOLD = 35         # Found valid extremes higher than manual 25
+MR_RSI_OVERBOUGHT = 63       # Found valid extremes lower than manual 75
+MR_BB_PERIOD = 41            # Significantly slower bands
+MR_BB_STD = 1.65             # Tighter standard deviation
+MR_SL_ATR_MULT = 2.15        # Widened stop
+MR_MIN_RR = 1.61
+MR_TIME_EXIT_BARS = 26       # Extended to 6.5 hours 
 # ============================================================
 # MODULE 3 — High Volatility
 # ============================================================

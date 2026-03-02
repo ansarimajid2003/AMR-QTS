@@ -21,7 +21,9 @@
 - [x] Data cleaning & validation
 - [x] Build HMM regime detector
 - [x] Build strategy modules
-- [/] Isolate backtest each module
+- [x] Isolate backtest each module
+  - [x] Create Optuna optimizer script
+  - [x] Test Optuna script on trend module
 - [ ] Edge validation tests
 - [ ] HMM vs rules comparison
 

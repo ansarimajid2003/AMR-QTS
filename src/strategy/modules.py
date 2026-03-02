@@ -28,22 +28,7 @@ from ta.momentum import RSIIndicator
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from config.settings import (
-    # Trend params
-    TREND_BREAKOUT_BARS, TREND_ATR_EXPANSION, TREND_RSI_LONG_RANGE,
-    TREND_RSI_SHORT_RANGE, TREND_SL_ATR_MULT, TREND_RR_PRIMARY,
-    TREND_RR_TRAIL_ACTIVATION, TREND_MFE_RETRACE_EXIT,
-    # Mean Rev params
-    MR_RSI_PERIOD, MR_RSI_OVERSOLD, MR_RSI_OVERBOUGHT,
-    MR_BB_PERIOD, MR_BB_STD, MR_SL_ATR_MULT, MR_MIN_RR, MR_TIME_EXIT_BARS,
-    # High Vol params
-    HV_BAR_RANGE_MULT, HV_BODY_RATIO, HV_ATR_EXPANSION,
-    HV_SL_ATR_MULT, HV_MIN_RR, HV_RISK_REDUCTION,
-    # General
-    ADX_PERIOD, ATR_PERIOD, EMA_FAST, EMA_SLOW, EMA_PROXIMITY_THRESHOLD,
-    BASE_RISK_PCT, MAX_SLIPPAGE_PIPS, SPREAD_PIPS,
-    HMM_MIN_CONFIDENCE,
-)
+import config.settings as opt_settings
 from src.regime.regime_detector import Regime
 
 
@@ -66,7 +51,7 @@ class Signal:
     entry_price: float
     stop_loss: float
     take_profit: float
-    risk_pct: float = BASE_RISK_PCT
+    risk_pct: float = opt_settings.BASE_RISK_PCT
     atr_at_entry: float = 0.0
     regime: Regime = Regime.NEUTRAL
     regime_confidence: float = 0.0
@@ -110,26 +95,26 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     # ATR
     atr_ind = AverageTrueRange(high=df['high'], low=df['low'], close=df['close'],
-                               window=ATR_PERIOD, fillna=False)
+                               window=opt_settings.ATR_PERIOD, fillna=False)
     out['atr'] = atr_ind.average_true_range()
 
     # RSI
-    rsi_ind = RSIIndicator(close=df['close'], window=14, fillna=False)
+    rsi_ind = RSIIndicator(close=df['close'], window=opt_settings.MR_RSI_PERIOD, fillna=False)
     out['rsi'] = rsi_ind.rsi()
 
     # EMAs
-    out['ema_fast'] = EMAIndicator(close=df['close'], window=EMA_FAST, fillna=False).ema_indicator()
-    out['ema_slow'] = EMAIndicator(close=df['close'], window=EMA_SLOW, fillna=False).ema_indicator()
+    out['ema_fast'] = EMAIndicator(close=df['close'], window=opt_settings.EMA_FAST, fillna=False).ema_indicator()
+    out['ema_slow'] = EMAIndicator(close=df['close'], window=opt_settings.EMA_SLOW, fillna=False).ema_indicator()
 
     # ADX
     adx_ind = ADXIndicator(high=df['high'], low=df['low'], close=df['close'],
-                           window=ADX_PERIOD, fillna=False)
+                           window=opt_settings.ADX_PERIOD, fillna=False)
     out['adx'] = adx_ind.adx()
     out['plus_di'] = adx_ind.adx_pos()
     out['minus_di'] = adx_ind.adx_neg()
 
     # Bollinger Bands
-    bb = BollingerBands(close=df['close'], window=MR_BB_PERIOD, window_dev=MR_BB_STD, fillna=False)
+    bb = BollingerBands(close=df['close'], window=opt_settings.MR_BB_PERIOD, window_dev=opt_settings.MR_BB_STD, fillna=False)
     out['bb_upper'] = bb.bollinger_hband()
     out['bb_lower'] = bb.bollinger_lband()
     out['bb_mid'] = bb.bollinger_mavg()
@@ -140,8 +125,8 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     out['body_ratio'] = out['body'] / out['bar_range'].replace(0, np.nan)
 
     # Rolling highs/lows for breakout (shifted by 1 so current bar can break out)
-    out['high_20'] = df['high'].rolling(TREND_BREAKOUT_BARS).max().shift(1)
-    out['low_20'] = df['low'].rolling(TREND_BREAKOUT_BARS).min().shift(1)
+    out['high_20'] = df['high'].rolling(opt_settings.TREND_BREAKOUT_BARS).max().shift(1)
+    out['low_20'] = df['low'].rolling(opt_settings.TREND_BREAKOUT_BARS).min().shift(1)
 
     # Average bar range for expansion checks
     out['avg_range_5'] = out['bar_range'].rolling(5).mean().shift(1)
@@ -220,7 +205,7 @@ class TrendStrategy:
         signals = []
         df = compute_indicators(entry_df)
 
-        for i in range(TREND_BREAKOUT_BARS + 5, len(df)):
+        for i in range(opt_settings.TREND_BREAKOUT_BARS + 5, len(df)):
             bar = df.iloc[i]
             ts = df.index[i]
 
@@ -234,7 +219,7 @@ class TrendStrategy:
                 continue
             if regime_row['regime'] != Regime.TRENDING:
                 continue
-            if regime_row['confidence'] < HMM_MIN_CONFIDENCE:
+            if regime_row['confidence'] < opt_settings.HMM_MIN_CONFIDENCE:
                 continue
 
             # --- H4 structure confirmation ---
@@ -247,13 +232,13 @@ class TrendStrategy:
             # --- LONG setup ---
             if (h4_dir >= 0 and  # H4 not downtrending
                 bar['close'] > bar['high_20'] and  # 20-bar breakout
-                bar['close'] > bar['ema_slow'] and  # Above EMA200
-                bar['bar_range'] > TREND_ATR_EXPANSION * bar['avg_range_5'] and  # ATR expansion
-                TREND_RSI_LONG_RANGE[0] <= bar['rsi'] <= TREND_RSI_LONG_RANGE[1]):  # RSI filter
+                (bar['close'] > bar['ema_slow'] if opt_settings.TREND_USE_EMA_FILTER else True) and  # Optional EMA200
+                bar['bar_range'] > opt_settings.TREND_ATR_EXPANSION * bar['avg_range_5'] and  # ATR expansion
+                opt_settings.TREND_RSI_LONG_MIN <= bar['rsi'] <= opt_settings.TREND_RSI_LONG_MAX):  # Dynamic RSI filter
 
                 entry = bar['close']
-                sl = entry - TREND_SL_ATR_MULT * atr
-                tp = entry + TREND_RR_PRIMARY * (entry - sl)
+                sl = entry - opt_settings.TREND_SL_ATR_MULT * atr
+                tp = entry + opt_settings.TREND_RR_PRIMARY * (entry - sl)
 
                 signals.append(Signal(
                     timestamp=ts, symbol=self.symbol,
@@ -266,13 +251,13 @@ class TrendStrategy:
             # --- SHORT setup ---
             elif (h4_dir <= 0 and  # H4 not uptrending
                   bar['close'] < bar['low_20'] and  # 20-bar breakdown
-                  bar['close'] < bar['ema_slow'] and  # Below EMA200
-                  bar['bar_range'] > TREND_ATR_EXPANSION * bar['avg_range_5'] and
-                  TREND_RSI_SHORT_RANGE[0] <= bar['rsi'] <= TREND_RSI_SHORT_RANGE[1]):
+                  (bar['close'] < bar['ema_slow'] if opt_settings.TREND_USE_EMA_FILTER else True) and  # Optional EMA200
+                  bar['bar_range'] > opt_settings.TREND_ATR_EXPANSION * bar['avg_range_5'] and
+                  opt_settings.TREND_RSI_SHORT_MIN <= bar['rsi'] <= opt_settings.TREND_RSI_SHORT_MAX):
 
                 entry = bar['close']
-                sl = entry + TREND_SL_ATR_MULT * atr
-                tp = entry - TREND_RR_PRIMARY * (sl - entry)
+                sl = entry + opt_settings.TREND_SL_ATR_MULT * atr
+                tp = entry - opt_settings.TREND_RR_PRIMARY * (sl - entry)
 
                 signals.append(Signal(
                     timestamp=ts, symbol=self.symbol,
@@ -330,7 +315,7 @@ class MeanReversionStrategy:
         signals = []
         df = compute_indicators(entry_df)
 
-        for i in range(max(MR_BB_PERIOD, MR_RSI_PERIOD) + 5, len(df)):
+        for i in range(max(opt_settings.MR_BB_PERIOD, opt_settings.MR_RSI_PERIOD) + 5, len(df)):
             bar = df.iloc[i]
             prev = df.iloc[i - 1]
             ts = df.index[i]
@@ -344,13 +329,13 @@ class MeanReversionStrategy:
                 continue
             if regime_row['regime'] != Regime.RANGING:
                 continue
-            if regime_row['confidence'] < HMM_MIN_CONFIDENCE:
+            if regime_row['confidence'] < opt_settings.HMM_MIN_CONFIDENCE:
                 continue
 
             # --- EMA proximity check (must be ranging) ---
             if not pd.isna(bar['ema_fast']) and not pd.isna(bar['ema_slow']) and bar['atr'] > 0:
                 ema_prox = abs(bar['ema_fast'] - bar['ema_slow']) / bar['atr']
-                if ema_prox > EMA_PROXIMITY_THRESHOLD * 10:  # Wide EMAs = not ranging
+                if ema_prox > opt_settings.EMA_PROXIMITY_THRESHOLD * 10:  # Wide EMAs = not ranging
                     continue
 
             atr = bar['atr']
@@ -358,15 +343,15 @@ class MeanReversionStrategy:
                 continue
 
             # --- LONG: oversold at lower BB ---
-            if (bar['rsi'] < MR_RSI_OVERSOLD and
+            if (bar['rsi'] < opt_settings.MR_RSI_OVERSOLD and
                 prev['low'] <= prev['bb_lower'] and  # Previous touched lower BB
                 bar['close'] > bar['bb_lower']):      # Confirmation: closed back inside
 
                 entry = bar['close']
-                sl = entry - MR_SL_ATR_MULT * atr
+                sl = entry - opt_settings.MR_SL_ATR_MULT * atr
                 # TP = BB midline, but ensure min RR
                 tp_bb = bar['bb_mid']
-                tp_min = entry + MR_MIN_RR * (entry - sl)
+                tp_min = entry + opt_settings.MR_MIN_RR * (entry - sl)
                 tp = max(tp_bb, tp_min)
 
                 signals.append(Signal(
@@ -378,14 +363,14 @@ class MeanReversionStrategy:
                 ))
 
             # --- SHORT: overbought at upper BB ---
-            elif (bar['rsi'] > MR_RSI_OVERBOUGHT and
+            elif (bar['rsi'] > opt_settings.MR_RSI_OVERBOUGHT and
                   prev['high'] >= prev['bb_upper'] and  # Previous touched upper BB
                   bar['close'] < bar['bb_upper']):       # Confirmation
 
                 entry = bar['close']
-                sl = entry + MR_SL_ATR_MULT * atr
+                sl = entry + opt_settings.MR_SL_ATR_MULT * atr
                 tp_bb = bar['bb_mid']
-                tp_min = entry - MR_MIN_RR * (sl - entry)
+                tp_min = entry - opt_settings.MR_MIN_RR * (sl - entry)
                 tp = min(tp_bb, tp_min)
 
                 signals.append(Signal(
@@ -436,7 +421,7 @@ class HighVolStrategy:
         signals = []
         df = compute_indicators(entry_df)
 
-        for i in range(TREND_BREAKOUT_BARS + 5, len(df)):
+        for i in range(opt_settings.TREND_BREAKOUT_BARS + 5, len(df)):
             bar = df.iloc[i]
             ts = df.index[i]
 
@@ -449,7 +434,7 @@ class HighVolStrategy:
                 continue
             if regime_row['regime'] != Regime.HIGH_VOL:
                 continue
-            if regime_row['confidence'] < HMM_MIN_CONFIDENCE:
+            if regime_row['confidence'] < opt_settings.HMM_MIN_CONFIDENCE:
                 continue
 
             atr = bar['atr']
@@ -457,15 +442,15 @@ class HighVolStrategy:
                 continue
 
             # Volatility expansion checks
-            range_expansion = bar['bar_range'] > HV_BAR_RANGE_MULT * bar['avg_range_20']
-            body_ok = bar['body_ratio'] > HV_BODY_RATIO if not pd.isna(bar['body_ratio']) else False
-            atr_expanding = bar['atr_change_pct'] > HV_ATR_EXPANSION if not pd.isna(bar['atr_change_pct']) else False
+            range_expansion = bar['bar_range'] > opt_settings.HV_BAR_RANGE_MULT * bar['avg_range_20']
+            body_ok = bar['body_ratio'] > opt_settings.HV_BODY_RATIO if not pd.isna(bar['body_ratio']) else False
+            atr_expanding = bar['atr_change_pct'] > opt_settings.HV_ATR_EXPANSION if not pd.isna(bar['atr_change_pct']) else False
 
             if not (range_expansion and body_ok and atr_expanding):
                 continue
 
             # Risk is reduced by 50%
-            risk = BASE_RISK_PCT * HV_RISK_REDUCTION
+            risk = opt_settings.BASE_RISK_PCT * opt_settings.HV_RISK_REDUCTION
 
             # --- H4 directional filter ---
             h4_dir = self._get_h4_at(ts, h4_structure)
@@ -474,8 +459,8 @@ class HighVolStrategy:
             if (bar['close'] > bar['high_20'] and bar['close'] > bar['open']
                     and h4_dir >= 0):
                 entry = bar['close']
-                sl = entry - HV_SL_ATR_MULT * atr
-                tp = entry + HV_MIN_RR * (entry - sl)
+                sl = entry - opt_settings.HV_SL_ATR_MULT * atr
+                tp = entry + opt_settings.HV_MIN_RR * (entry - sl)
 
                 signals.append(Signal(
                     timestamp=ts, symbol=self.symbol,
