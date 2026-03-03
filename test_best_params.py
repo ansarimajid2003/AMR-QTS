@@ -5,14 +5,23 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import config.settings as opt_settings
-from src.strategy.modules import TrendStrategy
-from src.strategy.backtester import Backtester, analyze_trades, print_metrics
+import config.settings_trend as opt_settings
+from src.strategy.module_trend import TrendStrategy
+from src.strategy.backtester_trend import Backtester, analyze_trades, print_metrics
 
-from ai_optimization_pack.run_optimization import load_data
+import pandas as pd
+from src.utils.data_loader import load_train_data
 
-print("Loading data...")
-ENTRY_DF, H1_REGIME, H4_STRUCTURE = load_data()
+print("Loading training data ONLY...")
+ENTRY_DF, H1_REGIME, H4_STRUCTURE = load_train_data()
+
+# Slice to the last 3 months of data
+end_date = ENTRY_DF.index.max()
+start_date = end_date - pd.DateOffset(months=3)
+print(f"Filtering dataset to 3-month window: {start_date.date()} to {end_date.date()}")
+ENTRY_DF = ENTRY_DF[ENTRY_DF.index >= start_date]
+H1_REGIME = H1_REGIME[H1_REGIME.index >= start_date]
+H4_STRUCTURE = H4_STRUCTURE[H4_STRUCTURE.index >= start_date]
 
 # Apply the best parameters found
 opt_settings.TREND_ATR_EXPANSION = 3.369402

@@ -9,10 +9,10 @@ import config.settings as opt_settings
 from src.strategy.modules import MeanReversionStrategy
 from src.strategy.backtester import Backtester, analyze_trades, print_metrics
 
-from ai_optimization_pack.run_optimization import load_data
+from src.utils.data_loader import load_train_data
 
-print("Loading data...")
-ENTRY_DF, H1_REGIME, H4_STRUCTURE = load_data()
+print("Loading training data ONLY...")
+ENTRY_DF, H1_REGIME, H4_STRUCTURE = load_train_data()
 
 # Apply the best parameters found
 opt_settings.MR_BB_PERIOD = 41

@@ -78,7 +78,10 @@ class Backtester:
         entry = signal.entry_price
 
         # Apply spread + slippage to entry
-        spread = opt_settings.SPREAD_PIPS.get(signal.symbol, 0.2) / 10000
+        if self.spread_pips > 0:
+            spread = self.spread_pips / 10000
+        else:
+            spread = opt_settings.SPREAD_PIPS.get(signal.symbol, 0.2) / 10000
         slippage = np.random.uniform(0, self.slippage_max) / 10000
         if direction == Direction.LONG:
             entry += spread + slippage
@@ -108,8 +111,10 @@ class Backtester:
             mae = max(mae, adverse)
 
             # --- Check SL hit ---
+            # Using min/max with open price ensures we capture gap-downs/gap-ups over the weekend/overnight
             if direction == Direction.LONG and bar['low'] <= trailing_sl:
-                exit_price = trailing_sl - np.random.uniform(0, 0.5) / 10000
+                fill_price = min(bar['open'], trailing_sl)
+                exit_price = fill_price - np.random.uniform(0, 0.5) / 10000
                 reason = 'trail' if trail_activated else 'sl'
                 return Trade(
                     signal=signal, exit_price=exit_price, exit_time=ts,
@@ -117,7 +122,8 @@ class Backtester:
                     mfe_pips=mfe * 10000, mae_pips=mae * 10000,
                 )
             elif direction == Direction.SHORT and bar['high'] >= trailing_sl:
-                exit_price = trailing_sl + np.random.uniform(0, 0.5) / 10000
+                fill_price = max(bar['open'], trailing_sl)
+                exit_price = fill_price + np.random.uniform(0, 0.5) / 10000
                 reason = 'trail' if trail_activated else 'sl'
                 return Trade(
                     signal=signal, exit_price=exit_price, exit_time=ts,
@@ -188,8 +194,9 @@ class Backtester:
         )
 
     def _current_regime(self, ts, h1_regime):
-        """Get regime at given timestamp."""
-        valid = h1_regime.index[h1_regime.index <= ts]
+        """Get the latest fully closed H1 regime prior to the completion of the 15m bar to avoid lookahead."""
+        cutoff = ts - pd.Timedelta(minutes=45)
+        valid = h1_regime.index[h1_regime.index <= cutoff]
         if len(valid) == 0:
             return None
         return h1_regime.loc[valid[-1], 'regime']

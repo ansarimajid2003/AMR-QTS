@@ -39,24 +39,43 @@ def print_header(message: str):
     print(f"{Colors.HEADER}{Colors.BOLD}{'='*70}{Colors.ENDC}\n")
 
 
+def _safe_symbol(symbol: str, ascii_fallback: str) -> str:
+    """Use ASCII fallback on Windows when stdout may not support Unicode."""
+    if sys.platform == 'win32' and getattr(sys.stdout, 'encoding', None) in (None, 'cp1252', 'ascii'):
+        return ascii_fallback
+    return symbol
+
+
+def _safe_str(s: str) -> str:
+    """Return string safe for console output on encodings that don't support full Unicode."""
+    enc = getattr(sys.stdout, 'encoding', None) or 'utf-8'
+    if enc and enc.lower() in ('utf-8', 'utf8'):
+        return s
+    try:
+        s.encode(enc)
+        return s
+    except (UnicodeEncodeError, AttributeError):
+        return s.encode(enc, errors='replace').decode(enc, errors='replace')
+
+
 def print_success(message: str):
     """Print success message"""
-    print(f"{Colors.OKGREEN}✓ {message}{Colors.ENDC}")
+    print(f"{Colors.OKGREEN}{_safe_symbol('✓', '[OK]')} {_safe_str(message)}{Colors.ENDC}")
 
 
 def print_info(message: str):
     """Print info message"""
-    print(f"{Colors.OKCYAN}ℹ {message}{Colors.ENDC}")
+    print(f"{Colors.OKCYAN}{_safe_symbol('ℹ', 'i')} {_safe_str(message)}{Colors.ENDC}")
 
 
 def print_warning(message: str):
     """Print warning message"""
-    print(f"{Colors.WARNING}⚠ {message}{Colors.ENDC}")
+    print(f"{Colors.WARNING}{_safe_symbol('⚠', '!')} {_safe_str(message)}{Colors.ENDC}")
 
 
 def print_error(message: str):
     """Print error message"""
-    print(f"{Colors.FAIL}✗ {message}{Colors.ENDC}")
+    print(f"{Colors.FAIL}{_safe_symbol('✗', 'X')} {_safe_str(message)}{Colors.ENDC}")
 
 
 def run_command(command: list, check: bool = True, capture: bool = True) -> subprocess.CompletedProcess:

@@ -1,0 +1,113 @@
+# AMR-QTS Architecture 
+
+This architectural diagram maps the flow of data out of ingest protocols, through the central regime detector, and specifically highlights the cleanly decoupled structure for the strategy modules, their standalone configurations, and their dedicated backtesters.
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2b2b2b', 'primaryTextColor': '#fff', 'primaryBorderColor': '#555', 'lineColor': '#888', 'secondaryColor': '#1e1e1e', 'tertiaryColor': '#3a3a3a'}}}%%
+flowchart TD
+    %% Define Styles
+    classDef ingest fill:#1e4d2b,stroke:#2b8a3e,stroke-width:2px,color:#fff;
+    classDef regime fill:#4b0082,stroke:#8a2be2,stroke-width:2px,color:#fff;
+    classDef core fill:#5c4033,stroke:#a0522d,stroke-width:2px,color:#fff;
+    classDef trend fill:#003366,stroke:#00aaff,stroke-width:2px,color:#fff;
+    classDef mr fill:#660000,stroke:#ff4d4d,stroke-width:2px,color:#fff;
+    classDef hv fill:#8b5a00,stroke:#ffa500,stroke-width:2px,color:#fff;
+    classDef result fill:#1a1a1a,stroke:#3b3b3b,stroke-width:2px,color:#00ff00;
+
+    %% Data Layer
+    subgraph DataIngestion [1. Data Ingestion Layer]
+        D_15m("15-Minute Data<br/>(Tick-level simulated)"):::ingest
+        D_H1("1-Hour Data<br/>(Broad Context)"):::ingest
+        D_H4("4-Hour Data<br/>(Macro Structure)"):::ingest
+    end
+
+    %% Regime Layer
+    subgraph RegimeDetection [2. Central Regime Detection]
+        HMM{"Hidden Markov Model<br/>(Regime Detector)"}:::regime
+        D_H1 -->|Trains & Infers| HMM
+        HMM -.->|Outputs State| R_Trend(["TRENDING"]):::regime
+        HMM -.->|Outputs State| R_Range(["RANGING"]):::regime
+        HMM -.->|Outputs State| R_Vol(["HIGH_VOL"]):::regime
+    end
+
+    %% Shared Core
+    subgraph SharedCore [3. Core Data Structures]
+        CoreData{"src/strategy/core.py<br/>- Signal object<br/>- Trade object<br/>- detect_h4_structure()"}:::core
+        D_H4 -->|Feeds Structure| CoreData
+    end
+
+    %% Strategy Modules Layer (Decoupled)
+    subgraph DecoupledStrategies [4. Isolated Strategy Modules]
+        
+        %% Trend Pathway
+        subgraph TrendPath [Trend Continuation]
+            T_Cfg("config/settings_trend.py<br/>RSI: 14"):::trend
+            T_Mod["src/strategy/module_trend.py<br/>(compute_indicators)"]:::trend
+            T_BT["src/strategy/backtester_trend.py"]:::trend
+            
+            T_Cfg --> T_Mod
+            T_Mod --> T_BT
+        end
+
+        %% Mean Reversion Pathway
+        subgraph MRPath [Mean Reversion]
+            MR_Cfg("config/settings_mr.py<br/>RSI: 21"):::mr
+            MR_Mod["src/strategy/module_mr.py<br/>(compute_indicators)"]:::mr
+            MR_BT["src/strategy/backtester_mr.py"]:::mr
+            
+            MR_Cfg --> MR_Mod
+            MR_Mod --> MR_BT
+        end
+
+        %% High Volatility Pathway
+        subgraph HVPath [High Volatility]
+            HV_Cfg("config/settings_hv.py<br/>(Base RSI untouched)"):::hv
+            HV_Mod["src/strategy/module_hv.py<br/>(compute_indicators)"]:::hv
+            HV_BT["src/strategy/backtester_hv.py"]:::hv
+            
+            HV_Cfg --> HV_Mod
+            HV_Mod --> HV_BT
+        end
+    end
+
+    %% Connections linking layers
+    D_15m ===|Primary M15 Price Feed| T_Mod
+    D_15m ===|Primary M15 Price Feed| MR_Mod
+    D_15m ===|Primary M15 Price Feed| HV_Mod
+
+    R_Trend ===|Activates| T_Mod
+    R_Range ===|Activates| MR_Mod
+    R_Vol ===|Activates| HV_Mod
+    
+    CoreData -->|Shares objects & H4 Context| T_Mod
+    CoreData -->|Shares objects & H4 Context| MR_Mod
+    CoreData -->|Shares objects & H4 Context| HV_Mod
+
+    %% Outputs Layer
+    subgraph Outputs [5. Execution Outcomes]
+        O_Trend("Completed Trend Trades"):::result
+        O_MR("Completed Mean Reversion Trades"):::result
+        O_HV("Completed High Vol Trades"):::result
+        
+        T_BT --> O_Trend
+        MR_BT --> O_MR
+        HV_BT --> O_HV
+    end
+
+    %% Note for AI 
+    note1[/"AI Optimization scripts\ncan now safely import specific\nconfig+module pairs without\ncross-contamination."/]
+    note1 -.-> DecoupledStrategies
+```
+
+### Explaining the New Workflow
+1. **Data Ingestion**: M15 data acts as the primary trading timeframe, executing entry and exit scans. The H1 data provides broader context to avoid noise, and H4 gives macro direction.
+2. **Regime Detection**: The core HMM model specifically looks at the `H1` data and determines the current market condition, asserting either a TRENDING, RANGING, or HIGH_VOL state along with a confidence probability.
+3. **Core Injection**: [src/strategy/core.py](file:///c:/Users/ansar/Documents/Adaptive%20Multi-Regime%20Quantitative%20Trading%20System%20%28AMR-QTS%29/src/strategy/core.py) interprets the H4 structure, standardizes what a trade [Signal](file:///c:/Users/ansar/Documents/Adaptive%20Multi-Regime%20Quantitative%20Trading%20System%20%28AMR-QTS%29/src/strategy/modules.py#44-65) and completed [Trade](file:///c:/Users/ansar/Documents/Adaptive%20Multi-Regime%20Quantitative%20Trading%20System%20%28AMR-QTS%29/src/strategy/core.py#39-58) looks like, and provides this structure to the active strategy.
+4. **Isolated Modules**:
+   - The regime state acts as a gateway. If the condition is `TRENDING`, the system asks [module_trend.py](file:///c:/Users/ansar/Documents/Adaptive%20Multi-Regime%20Quantitative%20Trading%20System%20%28AMR-QTS%29/src/strategy/module_trend.py) to hunt for trades.
+   - `module_trend` specifically imports properties exclusively from [config/settings_trend.py](file:///c:/Users/ansar/Documents/Adaptive%20Multi-Regime%20Quantitative%20Trading%20System%20%28AMR-QTS%29/config/settings_trend.py). It then computes *only* the indicators it requires natively (like a 14-period RSI).
+   - Once a valid target is identified, it generates a standardized [Signal](file:///c:/Users/ansar/Documents/Adaptive%20Multi-Regime%20Quantitative%20Trading%20System%20%28AMR-QTS%29/src/strategy/modules.py#44-65) object.
+   - That signal is passed into [backtester_trend.py](file:///c:/Users/ansar/Documents/Adaptive%20Multi-Regime%20Quantitative%20Trading%20System%20%28AMR-QTS%29/src/strategy/backtester_trend.py), which is loaded with specific trailing-stop logic only suited for capturing Trend profit.
+   - This exact workflow runs in parallel, but with total isolation, for Mean Reversion (RANGING) and High Volatility (HIGH_VOL).
+
+*No configuration variable is shared between these three pathways, ensuring that adjusting RSI settings or volatility bounds in one module never interferes with another.*
