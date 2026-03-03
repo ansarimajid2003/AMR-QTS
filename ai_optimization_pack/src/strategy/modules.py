@@ -114,7 +114,7 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     out['atr'] = atr_ind.average_true_range()
 
     # RSI
-    rsi_ind = RSIIndicator(close=df['close'], window=14, fillna=False)
+    rsi_ind = RSIIndicator(close=df['close'], window=MR_RSI_PERIOD, fillna=False)
     out['rsi'] = rsi_ind.rsi()
 
     # EMAs

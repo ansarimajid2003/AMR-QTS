@@ -84,19 +84,19 @@ HMM_RETRAIN_MONTHS = 6       # Retrain every N months in walk-forward
 # ============================================================
 # MODULE 1 — Trend Continuation
 # ============================================================
-TREND_BREAKOUT_BARS = 15     # Reduced from 20 for slightly earlier entries
-TREND_ATR_EXPANSION = 1.5    # Bar range > 1.5× avg of 5 bars
+TREND_BREAKOUT_BARS = 78     # Restoring back to optimal
+TREND_ATR_EXPANSION = 3.369402    # Bar range > 1.5× avg of 5 bars
 TREND_RSI_LONG_RANGE = (50, 75) # Moved up slightly to ensure momentum is established
 TREND_RSI_SHORT_RANGE = (25, 50) # Moved down slightly
 # --- Dynamic AI Parameters ---
-TREND_RSI_LONG_MIN = 50
+TREND_RSI_LONG_MIN = 55      # MANUALLY ADJUSTED: Tightening RSI Long bounds to ensure stronger momentum
 TREND_RSI_LONG_MAX = 70
 TREND_RSI_SHORT_MIN = 30
-TREND_RSI_SHORT_MAX = 50
-TREND_USE_EMA_FILTER = True           # Turn off to bypass the 200 EMA lag slightly
-TREND_SL_ATR_MULT = 1.6      # Slightly wider stop (from 1.5 to 1.6) to avoid wicks
-TREND_RR_PRIMARY = 2.0
-TREND_RR_TRAIL_ACTIVATION = 1.0
+TREND_RSI_SHORT_MAX = 45
+TREND_USE_EMA_FILTER = False           # Turn off to bypass the 200 EMA lag slightly
+TREND_SL_ATR_MULT = 1.554308      # Slightly wider stop (from 1.5 to 1.6) to avoid wicks
+TREND_RR_PRIMARY = 4.922755
+TREND_RR_TRAIL_ACTIVATION = 1.5   # MANUALLY ADJUSTED: Reduced from 2.90 to 1.5 to activate the trailing stop much earlier
 TREND_MFE_RETRACE_EXIT = 0.5  # Exit if retrace 50%+ of MFE
 
 # ============================================================

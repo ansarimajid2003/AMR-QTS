@@ -20,9 +20,10 @@ print("Loading data for optimization...")
 ENTRY_DF, H1_REGIME, H4_STRUCTURE = load_data()
 
 class Optimizer:
-    def __init__(self, module_name, n_trials=100):
+    def __init__(self, module_name, n_trials=100, n_jobs=8):
         self.module_name = module_name
         self.n_trials = n_trials
+        self.n_jobs = n_jobs
         
     def objective(self, trial):
         try:
@@ -175,7 +176,7 @@ class Optimizer:
         
         # Use joblib to parallelize optimization, which is much safer and faster on Windows
         import joblib
-        with joblib.parallel_backend("loky", n_jobs=8):
+        with joblib.parallel_backend("loky", n_jobs=self.n_jobs):
             study.optimize(self.objective, n_trials=self.n_trials)
         
         print(f"\n{'='*50}")
@@ -198,7 +199,8 @@ if __name__ == "__main__":
     parser.add_argument('--module', type=str, required=True, choices=['trend', 'meanreversion', 'highvol'], 
                         help='Which module to optimize.')
     parser.add_argument('--trials', type=int, default=100, help='Number of optuna trials to run.')
+    parser.add_argument('--cores', type=int, default=8, help='Number of CPU cores to use.')
     args = parser.parse_args()
     
-    optimizer = Optimizer(args.module, args.trials)
+    optimizer = Optimizer(args.module, args.trials, args.cores)
     optimizer.optimize()

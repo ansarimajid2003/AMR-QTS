@@ -1,0 +1,21 @@
+==================================================
+SciPy Differential Evolution Results
+==================================================
+
+Timestamp: 2026-03-03 05:49:49
+Total Runtime: 0.0 minutes
+Total Evaluations: 169
+Best Score: -1000.0000
+Success: True
+Message: Optimization terminated successfully.
+
+Best Parameters:
+--------------------------------------------------
+MR_RSI_PERIOD: 22
+MR_RSI_OVERSOLD: 32
+MR_RSI_OVERBOUGHT: 88
+MR_BB_PERIOD: 24
+MR_BB_STD: 1.9411
+MR_SL_ATR_MULT: 1.8
+MR_MIN_RR: 2.6798
+MR_TIME_EXIT_BARS: 40
